@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>小鲸的海底聊天室🐳</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 替换recorder-js为标准的recorder.js -->
+  <script src="/static/js/recorder.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+      overflow: hidden;
+      background: #8cdff3;
+      position: relative;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 30px;
+      color: #fff;
+      z-index: 10;
+      position: relative;
+    }
+
+    h2 {
+      text-align: center;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    #chatHistory {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      padding: 20px;
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      box-shadow: inset 0 0 10px rgba(255,255,255,0.2);
+    }
+
+    .user, .bot {
+      margin-bottom: 15px;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .user { color: #ffffee; }
+    .bot { color: #d2f5ff; }
+
+    .meta {
+      font-size: 0.9em;
+      color: #ccf;
+      margin-top: -10px;
+      margin-bottom: 10px;
+    }
+
+    input, button {
+      font-size: 1em;
+      padding: 12px;
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input { margin-bottom: 10px; }
+
+    button {
+      background: #4fd0e9;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin-bottom: 10px;
+    }
+
+    button:hover {
+      background: #2ca6c3;
+    }
+
+    .voice-btn {
+      background: #f091e4;
+    }
+
+    .voice-btn:hover {
+      background: #c564bd;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .button-group button {
+      flex: 1;
+    }
+
+    .error-message {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #e74c3c;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .bubble {
+      position: absolute;
+      bottom: -100px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      animation: floatUp 20s infinite ease-in;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-150vh) scale(1.5); }
+    }
+
+    .bubbles {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .whale {
+      position: fixed;
+      bottom: 30px;
+      left: -100px;
+      width: 100px;
+      z-index: 2;
+      animation: swim 12s linear infinite;
+    }
+
+    @keyframes swim {
+      0% { left: -120px; transform: scaleX(1); }
+      50% { left: 100%; transform: scaleX(1); }
+      51% { transform: scaleX(-1); }
+      100% { left: -120px; transform: scaleX(-1); }
+    }
+
+    .ripple {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 50% 120%, rgba(255,255,255,0.15), transparent 70%);
+      background-size: 100% 200%;
+      animation: rippleWave 5s infinite ease-in-out;
+      z-index: 0;
+    }
+
+    @keyframes rippleWave {
+      0%, 100% { background-position: 50% 120%; }
+      50% { background-position: 50% 100%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 动态背景 -->
+  <div class="ripple"></div>
+  <div class="bubbles">
+    <div class="bubble" style="left: 10%; width: 20px; height: 20px; animation-delay: 0s;"></div>
+    <div class="bubble" style="left: 30%; width: 40px; height: 40px; animation-delay: 4s;"></div>
+    <div class="bubble" style="left: 50%; width: 25px; height: 25px; animation-delay: 2s;"></div>
+    <div class="bubble" style="left: 70%; width: 35px; height: 35px; animation-delay: 6s;"></div>
+    <div class="bubble" style="left: 90%; width: 20px; height: 20px; animation-delay: 1s;"></div>
+  </div>
+
+  <!-- 游动鲸鱼 -->
+  <img src="https://cdn.pixabay.com/photo/2020/10/18/20/40/whale-5666115_1280.png" class="whale" alt="Whale" />
+
+  <div class="container">
+    <h2>🐬 小鲸正在海底等你说话哦~</h2>
+    <div id="chatHistory"></div>
+    <input type="text" id="msgInput" placeholder="快来和小鲸聊天吧！" />
+    <div class="button-group">
+      <button onclick="send()">发送</button>
+      <button id="recordButton" class="voice-btn">🎤 开始录音</button>
+    </div>
+    <div id="recordingStatus" style="display:none; color: #fff; text-align: center; margin-top: 10px;">
+      正在录音... <span id="recordingTime">0</span>秒
+    </div>
+  </div>
+  
+  <!-- 音效 -->
+  <audio id="sendSound" src="https://cdn.pixabay.com/audio/2023/03/30/audio_e7f183f4f7.mp3" preload="auto"></audio>
+
+  <script>
+    const chatHistory = document.getElementById("chatHistory");
+    const sendSound = document.getElementById("sendSound");
+    const msgInput = document.getElementById("msgInput");
+    const recordButton = document.getElementById("recordButton");
+    const recordingStatus = document.getElementById("recordingStatus");
+    const recordingTime = document.getElementById("recordingTime");
+
+    let audioContext;
+    let recorder;
+    let audioStream;
+    let isRecording = false;
+    let recordingTimer;
+    let recordingSeconds = 0;
+
+    // 显示错误提示
+    function showError(message) {
+      const errorDiv = document.createElement("div");
+      errorDiv.className = "error-message";
+      errorDiv.textContent = message;
+      document.body.appendChild(errorDiv);
+      setTimeout(() => errorDiv.remove(), 5000);
+    }
+
+    // 发送聊天消息
+    async function send(msgOverride = null) {
+      const msg = msgOverride || msgInput.value.trim();
+      if (!msg) return;
+
+      chatHistory.innerHTML += `<div class="user"><strong>你:</strong> ${msg}</div>`;
+      msgInput.value = "";
+      sendSound.play();
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        chatHistory.innerHTML += `<div class="bot"><strong>小鲸:</strong> ${data.reply}</div>`;
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      } catch (err) {
+        showError("发送消息失败: " + err.message);
+      }
+    }
+
+    // 录音切换
+    function toggleRecording() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
+
+    // 开始录音 - 使用新的recorder.js
+    async function startRecording() {
+      try {
+        // 创建音频上下文
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+          sampleRate: 16000 // 设置采样率为16kHz
+        });
+        
+        // 获取麦克风流
+        audioStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true
+          } 
+        });
+        
+        // 创建音频输入节点
+        const source = audioContext.createMediaStreamSource(audioStream);
+        
+        // 创建Recorder实例
+        recorder = new Recorder(source, {
+          numChannels: 1, // 单声道
+          sampleRate: 16000 // 16kHz采样率
+        });
+        
+        // 开始录音
+        recorder.record();
+        
+        // 更新UI
+        isRecording = true;
+        recordButton.textContent = "🛑 停止录音";
+        recordButton.style.background = "#e74c3c";
+        recordingStatus.style.display = "block";
+
+        // 开始计时
+        recordingSeconds = 0;
+        recordingTime.textContent = recordingSeconds;
+        recordingTimer = setInterval(() => {
+          recordingSeconds++;
+          recordingTime.textContent = recordingSeconds;
+          if (recordingSeconds >= 60) {
+            stopRecording();
+            showError("录音时间达到60秒上限");
+          }
+        }, 1000);
+        
+        console.log("开始录音，使用标准WAV格式");
+      } catch (err) {
+        showError("无法访问麦克风: " + err.message);
+        console.error("录音错误:", err);
+      }
+    }
+
+    // 停止录音
+    function stopRecording() {
+      if (!isRecording || !recorder) return;
+      
+      // 停止录音
+      recorder.stop();
+      
+      // 停止麦克风访问
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+      }
+      
+      // 更新UI
+      isRecording = false;
+      recordButton.textContent = "🎤 开始录音";
+      recordButton.style.background = "#f091e4";
+      recordingStatus.style.display = "none";
+      clearInterval(recordingTimer);
+      
+      // 导出WAV
+      recorder.exportWAV(blob => {
+        console.log("录音完成，WAV格式，大小:", blob.size, "字节");
+        sendAudioToServer(blob);
+      }, 'audio/wav');
+    }
+
+    // 发送音频到服务器
+    async function sendAudioToServer(audioBlob) {
+      if (audioBlob.size > 10 * 1024 * 1024) {
+        showError("音频文件过大，请缩短录音时间");
+        return;
+      }
+
+      // 创建一个reader读取blob内容，用于调试
+      const reader = new FileReader();
+      reader.onload = function() {
+        const arrayBuffer = this.result;
+        // 检查WAV头部
+        const dataView = new DataView(arrayBuffer);
+        const header = new Uint8Array(arrayBuffer, 0, 12);
+        console.log("WAV头部检查:", 
+          String.fromCharCode(header[0], header[1], header[2], header[3]), // 应该是"RIFF"
+          String.fromCharCode(header[8], header[9], header[10], header[11]) // 应该是"WAVE"
+        );
+      };
+      reader.readAsArrayBuffer(audioBlob);
+
+      // 使用FormData发送
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "audio.wav");
+
+      try {
+        msgInput.placeholder = "正在处理语音...";
+        msgInput.disabled = true;
+
+        // 改为使用base64发送，与后端匹配
+        const base64Reader = new FileReader();
+        base64Reader.readAsDataURL(audioBlob);
+        base64Reader.onloadend = async () => {
+          const base64Audio = base64Reader.result;
+          
+          const response = await fetch("/speech-to-text", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ audio: base64Audio })
+          });
+
+          const result = await response.json();
+
+          msgInput.disabled = false;
+          msgInput.placeholder = "快来和小鲸聊天吧！";
+
+          if (result.error) {
+            let errorMsg = "语音识别失败: " + result.error;
+            if (result.saved_file) {
+              errorMsg += "\n录音已保存到: " + result.saved_file;
+            }
+            showError(errorMsg);
+          } else if (result.text) {
+            msgInput.value = result.text;
+            send(result.text);
+            if (result.saved_file) {
+              console.log("录音已保存到: " + result.saved_file);
+            }
+          }
+        };
+      } catch (err) {
+        msgInput.disabled = false;
+        msgInput.placeholder = "快来和小鲸聊天吧！";
+        showError("处理语音时出错: " + err.message);
+      }
+    }
+
+    // 回车键发送
+    msgInput.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        send();
+      }
+    });
+
+    // 绑定录音按钮
+    recordButton.addEventListener("click", toggleRecording);
+  </script>
+</body>
+</html>
